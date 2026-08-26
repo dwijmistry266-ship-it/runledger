@@ -1,0 +1,33 @@
+name: Action self-test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Run local action
+        id: runledger
+        uses: ./
+        with:
+          command: "printf 'runledger-action-ok\\n'"
+          isolated: "true"
+      - name: Verify Action outputs
+        shell: bash
+        env:
+          REPORT: ${{ steps.runledger.outputs.report }}
+          BUNDLE: ${{ steps.runledger.outputs.bundle }}
+          STATUS: ${{ steps.runledger.outputs.status }}
+        run: |
+          test "$STATUS" = passed
+          test -s "$REPORT"
+          test -s "$BUNDLE"
+          python -m zipfile -t "$BUNDLE"
