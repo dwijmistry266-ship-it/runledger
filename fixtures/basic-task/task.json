@@ -1,0 +1,25 @@
+{
+  "name": "basic-runledger-fixture",
+  "allowed_paths": [
+    "src/**",
+    "tests/**",
+    "README.md"
+  ],
+  "forbidden_paths": [
+    ".env",
+    "secrets/**"
+  ],
+  "checks": [
+    {
+      "id": "tests-pass",
+      "kind": "command-exit",
+      "command": "python3 -c print('fixture pass')",
+      "expect": 0
+    },
+    {
+      "id": "diff-budget",
+      "kind": "changed-lines",
+      "maximum": 100
+    }
+  ]
+}
