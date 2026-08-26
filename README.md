@@ -35,6 +35,15 @@ runledger init --repo . --run-dir .runledger/demo --run-id demo
 # Record a command without shell interpolation.
 runledger exec --repo . --run-dir .runledger/demo -- python3 -c "print('hello')"
 
+# Capture interactive output through a POSIX pseudo-terminal.
+runledger exec --repo . --run-dir .runledger/interactive --pty -- python3 -i
+
+# Run in a disposable detached worktree; the caller’s checkout is not mutated.
+runledger exec --repo . --run-dir .runledger/isolated --isolated -- python3 -c "open('agent-output.txt', 'w').write('captured')"
+
+# Classify a run that ended without command.completed.
+runledger recover --run-dir .runledger/demo
+
 # Check the recorded run against an explicit contract.
 runledger verify --run-dir .runledger/demo --contract fixtures/basic-task/task.json
 
@@ -70,15 +79,19 @@ RunLedger uses plain files, explicit boundaries, deterministic checks, and human
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -v
+bash examples/basic-demo.sh
+bash tests/test_action.sh
 ```
+
+Read [supported environments](docs/SUPPORTED.md), the [security model](docs/SECURITY.md), the [event schema](docs/event-schema.md), and the [stable-release gates](docs/STABLE_RELEASE_GATES.md) before depending on RunLedger output.
 
 ## Non-goals
 
-RunLedger does not certify correctness or security, inspect private model reasoning, sandbox arbitrary commands by default, or upload repository contents to a hosted service. Optional isolation and network controls will be separate, explicit features.
+RunLedger does not certify correctness or security, inspect private model reasoning, or upload repository contents to a hosted service. Standard execution records the command in the current checkout; use `--isolated` for disposable Git worktree execution. PTY capture is POSIX-only, and no network sandbox is implied by the recorder.
 
 ## Status
 
-Early development. The schema and command interface may change before v0.1.0.
+Early development. The schema and command interface may change before a stable release. PTY capture is POSIX-only; the regular recorder is the documented fallback on other platforms.
 
 ## License
 

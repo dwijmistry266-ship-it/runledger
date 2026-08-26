@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import zipfile
 import unittest
 from pathlib import Path
 
+from runledger.adapters import PromptArgumentAdapter, PromptFileAdapter, conformance_check
 from runledger.bundle import build_bundle, verify_bundle
 from runledger.compare import build_comparison
 from runledger.cli import main
@@ -14,6 +16,9 @@ from runledger.contract import verify as verify_contract
 from runledger.git import snapshot
 from runledger.ledger import Ledger
 from runledger.recorder import CommandRecorder
+from runledger.pty import run_pty
+from runledger.recovery import recover
+from runledger.sarif import build_sarif
 from runledger.report import build_summary, render_markdown
 from runledger.viewer import render_html
 
@@ -124,6 +129,52 @@ class RunLedgerV01Tests(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(output["checks"][0]["status"], "fail")
 
+    def test_adapters_are_deterministic_and_shell_safe(self) -> None:
+        repo = Path("/tmp/example-repo")
+        for adapter in (PromptArgumentAdapter("agent"), PromptFileAdapter("agent")):
+            valid, errors = conformance_check(adapter, "task.md" if adapter.name == "prompt-file" else "fix the bug", repo)
+            self.assertTrue(valid, errors)
+        invalid, errors = conformance_check(PromptFileAdapter("agent"), "../secret.md", repo)
+        self.assertFalse(invalid)
+        self.assertTrue(errors)
+
+    def test_pty_capture_records_ordered_transcript(self) -> None:
+        if os.name != "posix":
+            self.skipTest("PTY capture is POSIX-only")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = Ledger(root / "run", run_id="pty")
+            code = run_pty(ledger, ["python3", "-c", "print('pty-line')"], cwd=root)
+            self.assertEqual(code, 0)
+            transcript_files = sorted((root / "run" / "artifacts").glob("pty-*.log"))
+            self.assertEqual(len(transcript_files), 1)
+            self.assertIn("pty-line", transcript_files[0].read_text(encoding="utf-8"))
+            self.assertEqual([event["type"] for event in ledger.events()], ["command.started", "command.completed"])
+
+    def test_isolated_execution_does_not_mutate_original_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = self.make_repo(root)
+            run_dir = root / "run"
+            self.assertEqual(main(["init", "--repo", str(repo), "--run-dir", str(run_dir), "--run-id", "isolated"]), 0)
+            code = main(["exec", "--repo", str(repo), "--run-dir", str(run_dir), "--isolated", "--", "python3", "-c", "open('generated.txt', 'w').write('isolated')"])
+            self.assertEqual(code, 0)
+            self.assertFalse((repo / "generated.txt").exists())
+            self.assertFalse((run_dir / "worktree").exists())
+            events = list(Ledger(run_dir, run_id="isolated").events())
+            self.assertIn("worktree.created", [event["type"] for event in events])
+            self.assertIn("generated.txt", (run_dir / "artifacts" / "git-diff.patch").read_text(encoding="utf-8"))
+
+    def test_recovery_marks_unfinished_command_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = Ledger(root / "run", run_id="interrupted")
+            ledger.append("command.started", {"command_sha256": "unfinished", "command_display": "agent task"})
+            result = recover(root / "run")
+            self.assertEqual(result["status"], "incomplete")
+            self.assertEqual(result["pending_sequences"], [1])
+            self.assertEqual(list(ledger.events())[-1]["type"], "run.recovered")
+
     def test_comparison_reports_path_and_command_differences(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -137,6 +188,17 @@ class RunLedgerV01Tests(unittest.TestCase):
             self.assertIn("src/a.py", result["paths"]["only_a"])
             self.assertIn("src/b.py", result["paths"]["only_b"])
             self.assertEqual(result["run_b"]["commands"], 0)
+
+    def test_sarif_contains_only_nonpassing_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_dir = root / "run"
+            ledger = Ledger(run_dir, run_id="sarif")
+            ledger.artifacts.write_text("checks.json", json.dumps({"checks": [{"id": "pass", "kind": "command-exit", "status": "pass", "message": "ok"}, {"id": "missing", "kind": "command-exit", "status": "not-run", "message": "required command was not recorded", "evidence": {}}]}))
+            sarif = build_sarif(run_dir)
+            self.assertEqual(sarif["version"], "2.1.0")
+            self.assertEqual(len(sarif["runs"][0]["results"]), 1)
+            self.assertEqual(sarif["runs"][0]["results"][0]["ruleId"], "runledger/missing")
 
     def test_bundle_verification_detects_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

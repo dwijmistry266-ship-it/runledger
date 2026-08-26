@@ -1,0 +1,81 @@
+name: RunLedger
+
+description: Record observable developer-tool runs and publish offline evidence artifacts.
+author: Dwij Mistry
+
+branding:
+  icon: activity
+  color: blue
+
+inputs:
+  command:
+    description: Optional command string to execute in the workspace. Leave empty to inspect an existing run directory.
+    required: false
+    default: ""
+  contract:
+    description: Optional path to a JSON task contract relative to the workspace.
+    required: false
+    default: ""
+  run-dir:
+    description: Directory for the run ledger relative to the workspace.
+    required: false
+    default: ".runledger/action"
+  isolated:
+    description: Run the command in a disposable detached Git worktree.
+    required: false
+    default: "true"
+  timeout:
+    description: Optional command timeout in seconds.
+    required: false
+    default: ""
+  upload-sarif:
+    description: Upload the generated SARIF file to GitHub code scanning. Requires security-events write permission.
+    required: false
+    default: "false"
+
+outputs:
+  status:
+    description: Final RunLedger status: passed, failed, or incomplete.
+    value: ${{ steps.runledger.outputs.status }}
+  report:
+    description: Absolute path to the generated Markdown report.
+    value: ${{ steps.runledger.outputs.report }}
+  bundle:
+    description: Absolute path to the generated proof bundle.
+    value: ${{ steps.runledger.outputs.bundle }}
+  sarif:
+    description: Absolute path to the generated SARIF report.
+    value: ${{ steps.runledger.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install RunLedger
+      shell: bash
+      run: python -m pip install --quiet "$GITHUB_ACTION_PATH"
+    - name: Record and report
+      id: runledger
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_CONTRACT: ${{ inputs.contract }}
+        INPUT_RUN_DIR: ${{ inputs.run-dir }}
+        INPUT_ISOLATED: ${{ inputs.isolated }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+        INPUT_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+      run: bash "$GITHUB_ACTION_PATH/action/run.sh"
+    - name: Upload RunLedger evidence
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: runledger-evidence
+        path: |
+          ${{ steps.runledger.outputs.report }}
+          ${{ steps.runledger.outputs.bundle }}
+          ${{ steps.runledger.outputs.sarif }}
+          ${{ github.workspace }}/${{ inputs.run-dir }}
+        if-no-files-found: error
+    - name: Upload SARIF to code scanning
+      if: ${{ inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@42947a340483f03ba47bb1a039b2c519aab3df85
+      with:
+        sarif_file: ${{ steps.runledger.outputs.sarif }}

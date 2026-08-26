@@ -1,0 +1,22 @@
+name: RunLedger evidence
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Run repository checks under RunLedger
+        uses: dwijmistry266-ship-it/runledger@v0.1.0a0
+        with:
+          # Use command execution only in a workflow that trusts the source.
+          command: "python -m unittest discover -s tests -v"
+          contract: fixtures/basic-task/task.json
+          isolated: "true"

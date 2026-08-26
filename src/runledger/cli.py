@@ -15,9 +15,13 @@ from .contract import verify as verify_contract
 from .git import diff as git_diff
 from .git import snapshot as git_snapshot
 from .ledger import Ledger
+from .pty import run_pty
 from .recorder import CommandRecorder
+from .recovery import recover
+from .sarif import render_sarif
 from .report import render_json, render_markdown
 from .viewer import render_html
+from .worktree import Worktree
 
 
 def _snapshot_payload(value):
@@ -65,15 +69,28 @@ def _exec(args: argparse.Namespace) -> int:
     metadata = json.loads(run_json.read_text(encoding="utf-8"))
     repo = Path(args.repo or metadata.get("repo", ".")).resolve()
     ledger = Ledger(run_dir, run_id=metadata.get("run_id", run_dir.name))
-    recorder = CommandRecorder(ledger, cwd=repo)
-    exit_code = recorder.run(command, timeout=args.timeout)
-    after = git_snapshot(repo)
+    worktree = None
+    execution_repo = repo
+    if args.isolated:
+        worktree = Worktree(repo, run_dir / "worktree")
+        execution_repo = worktree.create()
+        ledger.append("worktree.created", {"repository": str(repo), "path": str(execution_repo), "isolated": True})
     diff_output = ""
-    if after.available:
-        try:
-            diff_output = git_diff(repo)
-        except RuntimeError as exc:
-            diff_output = f"[runledger] unable to capture diff: {exc}\n"
+    try:
+        if args.pty:
+            exit_code = run_pty(ledger, command, cwd=execution_repo, timeout=args.timeout)
+        else:
+            recorder = CommandRecorder(ledger, cwd=execution_repo)
+            exit_code = recorder.run(command, timeout=args.timeout)
+        after = git_snapshot(execution_repo)
+        if after.available:
+            try:
+                diff_output = git_diff(execution_repo)
+            except RuntimeError as exc:
+                diff_output = f"[runledger] unable to capture diff: {exc}\n"
+    finally:
+        if worktree is not None:
+            worktree.remove()
     ledger.artifacts.write_text("git-diff.patch", diff_output)
     _write_run_metadata(run_dir, metadata.get("run_id", run_dir.name), repo, after=after)
     print(f"run={run_dir} exit_code={exit_code}")
@@ -91,6 +108,12 @@ def _compare(args: argparse.Namespace) -> int:
     else:
         sys.stdout.write(output)
     return 0
+
+
+def _recover(args: argparse.Namespace) -> int:
+    result = recover(Path(args.run_dir).resolve())
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["status"] == "complete" else 1
 
 
 def _bundle(args: argparse.Namespace) -> int:
@@ -121,6 +144,8 @@ def _report(args: argparse.Namespace) -> int:
         output = render_json(run_dir)
     elif args.format == "html":
         output = render_html(run_dir)
+    elif args.format == "sarif":
+        output = render_sarif(run_dir)
     else:
         output = render_markdown(run_dir)
     if args.output:
@@ -145,8 +170,14 @@ def build_parser() -> argparse.ArgumentParser:
     execute.add_argument("--repo")
     execute.add_argument("--run-dir", required=True)
     execute.add_argument("--timeout", type=float)
+    execute.add_argument("--pty", action="store_true", help="capture an interactive POSIX command through a pseudo-terminal")
+    execute.add_argument("--isolated", action="store_true", help="run the command in a disposable detached Git worktree")
     execute.add_argument("command", nargs=argparse.REMAINDER)
     execute.set_defaults(handler=_exec)
+
+    recover_parser = subparsers.add_parser("recover", help="classify unfinished command events in a run")
+    recover_parser.add_argument("--run-dir", required=True)
+    recover_parser.set_defaults(handler=_recover)
 
     compare = subparsers.add_parser("compare", help="compare two recorded runs")
     compare.add_argument("run_a")
@@ -172,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     report = subparsers.add_parser("report", help="render a recorded run")
     report.add_argument("--run-dir", required=True)
-    report.add_argument("--format", choices=("markdown", "json", "html"), default="markdown")
+    report.add_argument("--format", choices=("markdown", "json", "html", "sarif"), default="markdown")
     report.add_argument("--output")
     report.set_defaults(handler=_report)
     return parser
