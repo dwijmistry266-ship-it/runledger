@@ -16,7 +16,7 @@ Each RunLedger run is a directory containing an append-only `events.jsonl` file,
 
 `seq` is a 1-based monotonic integer within one run. Consumers must preserve input order and treat a gap or malformed line as a corrupt or incomplete ledger. Timestamps are informational and are not used as the ordering key.
 
-## v0.1 event types
+## Event types
 
 | Type | Required payload | Meaning |
 |---|---|---|
@@ -24,6 +24,8 @@ Each RunLedger run is a directory containing an append-only `events.jsonl` file,
 | `command.started` | `argv`, `command_display`, `command_sha256`, `cwd` | A command was accepted for execution. |
 | `command.completed` | `exit_code`, `duration_ms`, `stdout`, `stderr`, `timed_out` | The command completed, timed out, or failed to start. |
 | `verification.completed` | `contract`, `status`, `check_count` | A deterministic task contract was evaluated. |
+| `worktree.created` | `repository`, `path`, `isolated` | An isolated detached Git worktree was created for execution. |
+| `run.recovered` | `status`, `pending_sequences`, `completed_commands` | Unfinished command events were classified (`complete` or `incomplete`). |
 
 ## Artifact references
 

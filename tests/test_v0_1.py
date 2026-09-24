@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import zipfile
 import unittest
@@ -21,6 +22,9 @@ from runledger.recovery import recover
 from runledger.sarif import build_sarif
 from runledger.report import build_summary, render_markdown
 from runledger.viewer import render_html
+
+
+PYTHON = sys.executable  # interpreter running the suite; portable across platforms
 
 
 class RunLedgerV01Tests(unittest.TestCase):
@@ -50,7 +54,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             root = Path(tmp)
             ledger = Ledger(root / "run", run_id="capture")
             recorder = CommandRecorder(ledger, cwd=root)
-            exit_code = recorder.run(["python3", "-c", "print('api_key=sk_test_123456789012345')"])
+            exit_code = recorder.run([PYTHON, "-c", "print('api_key=sk_test_123456789012345')"])
             self.assertEqual(exit_code, 0)
             output_files = sorted((root / "run" / "artifacts").glob("stdout-*.txt"))
             self.assertEqual(len(output_files), 1)
@@ -63,7 +67,7 @@ class RunLedgerV01Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             ledger = Ledger(root / "run", run_id="failure")
-            code = CommandRecorder(ledger, cwd=root).run(["python3", "-c", "raise SystemExit(3)"])
+            code = CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "raise SystemExit(3)"])
             self.assertEqual(code, 3)
             completed = list(ledger.events())[-1]
             self.assertEqual(completed["exit_code"], 3)
@@ -88,13 +92,13 @@ class RunLedgerV01Tests(unittest.TestCase):
             (repo / "src").mkdir()
             (repo / "src" / "feature.py").write_text("pass\n", encoding="utf-8")
             recorder = CommandRecorder(Ledger(run_dir, run_id="contract-pass"), cwd=repo)
-            recorder.run(["python3", "-c", "print('fixture pass')"])
+            recorder.run([PYTHON, "-c", "print('fixture pass')"])
             after = snapshot(repo)
             metadata = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
             metadata["git_after"] = {**metadata.get("git_before", {}), **{**__import__("dataclasses").asdict(after)}}
             (run_dir / "run.json").write_text(json.dumps(metadata), encoding="utf-8")
             contract = root / "task.json"
-            contract.write_text(json.dumps({"name": "pass", "allowed_paths": ["src/**"], "checks": [{"id": "tests-pass", "kind": "command-exit", "command": "python3 -c print('fixture pass')", "expect": 0}]}), encoding="utf-8")
+            contract.write_text(json.dumps({"name": "pass", "allowed_paths": ["src/**"], "checks": [{"id": "tests-pass", "kind": "command-exit", "command": f"{PYTHON} -c print('fixture pass')", "expect": 0}]}), encoding="utf-8")
             output, code = verify_contract(run_dir, contract)
             self.assertEqual(code, 0)
             self.assertEqual(output["status"], "passed")
@@ -104,9 +108,9 @@ class RunLedgerV01Tests(unittest.TestCase):
             root = Path(tmp)
             run_dir = root / "run"
             ledger = Ledger(run_dir, run_id="missing")
-            CommandRecorder(ledger, cwd=root).run(["python3", "-c", "print('other')"])
+            CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "print('other')"])
             contract = root / "task.json"
-            contract.write_text(json.dumps({"name": "missing", "checks": [{"id": "required", "kind": "command-exit", "command": "python3 -c print('required')", "expect": 0}]}), encoding="utf-8")
+            contract.write_text(json.dumps({"name": "missing", "checks": [{"id": "required", "kind": "command-exit", "command": f"{PYTHON} -c print('required')", "expect": 0}]}), encoding="utf-8")
             output, code = verify_contract(run_dir, contract)
             self.assertEqual(code, 1)
             self.assertEqual(output["checks"][0]["status"], "not-run")
@@ -144,7 +148,7 @@ class RunLedgerV01Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             ledger = Ledger(root / "run", run_id="pty")
-            code = run_pty(ledger, ["python3", "-c", "print('pty-line')"], cwd=root)
+            code = run_pty(ledger, [PYTHON, "-c", "print('pty-line')"], cwd=root)
             self.assertEqual(code, 0)
             transcript_files = sorted((root / "run" / "artifacts").glob("pty-*.log"))
             self.assertEqual(len(transcript_files), 1)
@@ -157,7 +161,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             repo = self.make_repo(root)
             run_dir = root / "run"
             self.assertEqual(main(["init", "--repo", str(repo), "--run-dir", str(run_dir), "--run-id", "isolated"]), 0)
-            code = main(["exec", "--repo", str(repo), "--run-dir", str(run_dir), "--isolated", "--", "python3", "-c", "open('generated.txt', 'w').write('isolated')"])
+            code = main(["exec", "--repo", str(repo), "--run-dir", str(run_dir), "--isolated", "--", PYTHON, "-c", "open('generated.txt', 'w').write('isolated')"])
             self.assertEqual(code, 0)
             self.assertFalse((repo / "generated.txt").exists())
             self.assertFalse((run_dir / "worktree").exists())
@@ -182,7 +186,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             second = root / "second"
             Ledger(first, run_id="first").write_manifest({"run_id": "first", "git_after": {"status": [" M src/a.py"]}})
             Ledger(second, run_id="second").write_manifest({"run_id": "second", "git_after": {"status": [" M src/b.py"]}})
-            CommandRecorder(Ledger(first, run_id="first"), cwd=root).run(["python3", "-c", "print('a')"])
+            CommandRecorder(Ledger(first, run_id="first"), cwd=root).run([PYTHON, "-c", "print('a')"])
             result = build_comparison(first, second)
             self.assertEqual(result["run_a"]["id"], "first")
             self.assertIn("src/a.py", result["paths"]["only_a"])
@@ -227,7 +231,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             root = Path(tmp)
             run_dir = root / "viewer"
             ledger = Ledger(run_dir, run_id="viewer")
-            CommandRecorder(ledger, cwd=root).run(["python3", "-c", "print('hello')"])
+            CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "print('hello')"])
             page = render_html(run_dir)
             self.assertIn("RunLedger replay", page)
             self.assertIn("command.completed", page)
@@ -239,7 +243,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             root = Path(tmp)
             run_dir = root / "report"
             ledger = Ledger(run_dir, run_id="report")
-            CommandRecorder(ledger, cwd=root).run(["python3", "-c", "print('ok')"])
+            CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "print('ok')"])
             summary = build_summary(run_dir)
             self.assertEqual(summary["status"], "passed")
             markdown = render_markdown(run_dir)

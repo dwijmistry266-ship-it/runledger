@@ -10,17 +10,22 @@ RunLedger is not a coding agent, a correctness oracle, or a claim that a process
 
 A coding agent can finish with a green test command while still changing out-of-scope files, skipping a required check, retrying a failing command, or leaving behind an unexplained repository state. RunLedger makes those details reviewable after the process exits.
 
-## v0.1 direction
+## What it does
 
-The first release is intentionally small and local-first:
+RunLedger is local-first and dependency-light (standard library only):
 
 - record a command run as append-only JSONL events;
 - capture Git before/after evidence and changed files;
 - hash stored artifacts and redact common credential-shaped values;
-- render Markdown, JSON, and an offline HTML replay timeline;
-- evaluate explicit JSON task contracts with pass, fail, not-run, and unknown states;
+- capture interactive output through a POSIX pseudo-terminal (`--pty`), including genuinely interactive fixtures;
+- recover interrupted runs as `incomplete` rather than passed (`runledger recover`);
+- run in a disposable detached Git worktree (`--isolated`); the caller’s checkout is not mutated;
+- evaluate explicit JSON task contracts with pass, fail, not-run, unknown, and incomplete states;
 - compare two recorded runs without interpreting hidden model reasoning;
-- later add worktree isolation, PTY capture, and a GitHub Action.
+- build commands for local agent CLIs through conformance-checked adapters (`docs/ADAPTERS.md`);
+- render Markdown, JSON, SARIF, and an offline HTML replay timeline with event-type filters;
+- export manifest-backed proof bundles with tamper detection;
+- run in CI through the published GitHub Action (`action.yml`), including SARIF upload for failed contracts.
 
 ## Quick start
 
@@ -68,12 +73,12 @@ RunLedger writes `events.jsonl`, `run.json`, `artifacts/`, and `checks.json` ben
 | Process events | `run.initialized`, `command.started`, `command.completed`, `verification.completed` |
 | Terminal artifacts | Redacted stdout and stderr with unique per-command paths and hashes. |
 | Git evidence | Repository availability, HEAD, branch, porcelain status, and binary-aware diff. |
-| Contract checks | `pass`, `fail`, `not-run`, and `unknown` outcomes from explicit JSON checks. |
+| Contract checks | `pass`, `fail`, `not-run`, `unknown`, and `incomplete` outcomes from explicit JSON checks. |
 | Portable output | Markdown, JSON, offline HTML timeline, and manifest-backed ZIP bundle. |
 
 ## Design principles
 
-RunLedger uses plain files, explicit boundaries, deterministic checks, and human-readable evidence. Missing evidence is reported as `not-run` or `unknown`, never silently promoted to a pass. v0.1 captures command output into redacted artifacts, but recorded data should still be reviewed before sharing because redaction is not a guarantee against private business data.
+RunLedger uses plain files, explicit boundaries, deterministic checks, and human-readable evidence. Missing evidence is reported as `not-run` or `unknown`, never silently promoted to a pass. RunLedger captures command output into redacted artifacts, but recorded data should still be reviewed before sharing because redaction is not a guarantee against private business data.
 
 ## Development
 
@@ -91,7 +96,7 @@ RunLedger does not certify correctness or security, inspect private model reason
 
 ## Status
 
-Early development. The schema and command interface may change before a stable release. PTY capture is POSIX-only; the regular recorder is the documented fallback on other platforms.
+Prerelease: `1.0.0a0`. The event schema identifiers (`runledger.event.v1`, `runledger.report.v1`, `runledger.checks.v1`, `runledger.bundle.v1`, `runledger.recovery.v1`) are frozen per `docs/VERSIONING.md`. The stable `1.0.0` tag is reserved until the adoption gate is met: at least one real external trial producing reproducible feedback or a documented bug fix. PTY capture is POSIX-only; the regular recorder is the documented fallback on other platforms.
 
 ## License
 

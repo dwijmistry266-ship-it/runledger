@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +18,9 @@ from runledger.ledger import Ledger
 from runledger.recorder import CommandRecorder
 
 
+PYTHON = sys.executable  # portable stand-in executable across platforms
+
+
 def event_vocabulary(run_dir: Path) -> list[tuple[str, tuple[str, ...]]]:
     """The ordered event contract of a run: types plus payload key sets."""
     events = list(Ledger(run_dir).events())
@@ -29,7 +33,7 @@ class RunLedgerV04Tests(unittest.TestCase):
             root = Path(tmp)
             tasks = {"prompt-argument": "fix the bug", "prompt-file": "task.md"}
             vocabularies = []
-            for adapter in (PromptArgumentAdapter("true"), PromptFileAdapter("true")):
+            for adapter in (PromptArgumentAdapter(PYTHON, fixed_args=("-c", "pass")), PromptFileAdapter(PYTHON, fixed_args=("-c", "pass"))):
                 task = tasks[adapter.name]
                 valid, errors = conformance_check(adapter, task, root)
                 self.assertTrue(valid, errors)

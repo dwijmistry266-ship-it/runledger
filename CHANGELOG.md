@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.0.0a0 — 2026-09-24
+
+Prerelease of the 1.0 line. All schema identifiers (`runledger.event.v1`, `runledger.run.v1`, `runledger.checks.v1`, `runledger.report.v1`, `runledger.bundle.v1`, `runledger.recovery.v1`) are frozen per `docs/VERSIONING.md`; migration notes there confirm no migration is required from any alpha. The stable `1.0.0` tag is reserved until the adoption gate is met: at least one real external trial producing reproducible feedback or a documented bug fix.
+
+### Added
+
+- Platform matrix CI: the test suite runs on Ubuntu, macOS, and Windows across Python 3.11–3.13; suite commands use the running interpreter instead of a hardcoded `python3`.
+- Bundle compatibility evidence: verification explicitly rejects unknown bundle schemas (tested); bundles verify across package versions sharing the schema identifier.
+- Security review (`docs/SECURITY.md`): full-scope review with no blocking findings; residual risks documented.
+- Documentation now matches the software: README describes shipped capabilities, `docs/event-schema.md` lists all event types, `docs/VERSIONING.md` defines the versioning policy.
+
 ## 0.5.0a0 — 2026-09-24
 
 Fifth alpha milestone. The schema and command interface may change before a stable release.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -13,6 +14,9 @@ from runledger.cli import main
 from runledger.ledger import Ledger
 from runledger.pty import run_pty
 from runledger.recorder import CommandRecorder
+
+
+PYTHON = sys.executable  # interpreter running the suite; portable across platforms
 
 
 class RunLedgerV03Tests(unittest.TestCase):
@@ -52,7 +56,7 @@ class RunLedgerV03Tests(unittest.TestCase):
                             str(run_dir),
                             "--isolated",
                             "--",
-                            "python3",
+                            PYTHON,
                             "-c",
                             f"open({marker!r}, 'w').write({tag!r})",
                         ]

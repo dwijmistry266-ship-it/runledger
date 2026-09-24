@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,9 @@ from runledger.recovery import recover
 from runledger.report import artifact_index, build_summary
 
 
+PYTHON = sys.executable  # interpreter running the suite; portable across platforms
+
+
 class RunLedgerV02Tests(unittest.TestCase):
     def test_interactive_pty_session_records_typed_input_and_output(self) -> None:
         if os.name != "posix":
@@ -24,7 +28,7 @@ class RunLedgerV02Tests(unittest.TestCase):
             ledger = Ledger(root / "run", run_id="interactive")
             code = run_pty(
                 ledger,
-                ["python3", "-i"],
+                [PYTHON, "-i"],
                 cwd=root,
                 stdin_data=b"print('interactive-ok')\nexit()\n",
                 timeout=20,
@@ -60,7 +64,7 @@ class RunLedgerV02Tests(unittest.TestCase):
             root = Path(tmp)
             run_dir = root / "run"
             ledger = Ledger(run_dir, run_id="indexed")
-            CommandRecorder(ledger, cwd=root).run(["python3", "-c", "print('indexed')"])
+            CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "print('indexed')"])
             summary = build_summary(run_dir)
             index = summary["artifacts"]
             by_name = {entry["path"].split("/")[-1]: entry for entry in index}
