@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.5.0a0 — 2026-09-24
+
+Fifth alpha milestone. The schema and command interface may change before a stable release.
+
+### Added
+
+- Contract-driven Action self-test: the self-test workflow and the local harness (`tests/test_action.sh`) now exercise the `contract` input, asserting that a failed contract produces SARIF findings (`runledger/required-command`) and a `failed` status.
+- `fixtures/action-contract/task.json`: fixture contract for the Action's SARIF path.
+
 ## 0.4.0a0 — 2026-09-24
 
 Fourth alpha milestone. The schema and command interface may change before a stable release.

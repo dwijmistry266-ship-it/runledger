@@ -31,3 +31,26 @@ jobs:
           test -s "$REPORT"
           test -s "$BUNDLE"
           python -m zipfile -t "$BUNDLE"
+
+  self-test-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Run local action with a failing contract
+        id: runledger
+        continue-on-error: true
+        uses: ./
+        with:
+          command: "printf 'runledger-action-ok\\n'"
+          contract: fixtures/action-contract/task.json
+          isolated: "true"
+      - name: Verify SARIF findings for the failed contract
+        shell: bash
+        env:
+          SARIF: ${{ steps.runledger.outputs.sarif }}
+          STATUS: ${{ steps.runledger.outputs.status }}
+        run: |
+          test "$STATUS" = failed
+          test -s "$SARIF"
+          grep -q "runledger/required-command" "$SARIF"
