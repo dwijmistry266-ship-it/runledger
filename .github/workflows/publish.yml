@@ -1,8 +1,9 @@
 # Publish RunLedger to PyPI with Trusted Publishing (no stored tokens).
 #
-# One-time setup (maintainer, on pypi.org): create the `runledger` project,
-# then add a trusted publisher for this repository with workflow name
-# `publish.yml` and no environment restriction. PyPI mints a short-lived
+# One-time setup (maintainer, on pypi.org): add a *pending* trusted publisher
+# for PyPI project name `runledger` pointing at this repository with workflow
+# name `publish.yml` and no environment restriction. The project is created
+# automatically on the first successful publish. PyPI mints a short-lived
 # token for each run via OIDC; no API token is stored anywhere.
 
 name: Publish to PyPI
