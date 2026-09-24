@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.4.0a0 — 2026-09-24
+
+Fourth alpha milestone. The schema and command interface may change before a stable release.
+
+### Added
+
+- Adapter conformance on the event contract: the suite records commands built by both shipped adapters and asserts identical event vocabulary (types, order, payload key sets).
+- `docs/ADAPTERS.md`: the adapter interface, the two supported CLI shapes, validation rules, and conformance semantics.
+
 ## 0.3.0a0 — 2026-09-24
 
 Third alpha milestone. The schema and command interface may change before a stable release.
