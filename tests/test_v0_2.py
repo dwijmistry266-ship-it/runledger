@@ -64,7 +64,11 @@ class RunLedgerV02Tests(unittest.TestCase):
             root = Path(tmp)
             run_dir = root / "run"
             ledger = Ledger(run_dir, run_id="indexed")
-            CommandRecorder(ledger, cwd=root).run([PYTHON, "-c", "print('indexed')"])
+            # Binary stdout write: text-mode print() emits os.linesep, so only
+            # a binary write keeps the expected bytes identical on Windows.
+            CommandRecorder(ledger, cwd=root).run(
+                [PYTHON, "-c", "import sys; sys.stdout.buffer.write(b'indexed\\n')"]
+            )
             summary = build_summary(run_dir)
             index = summary["artifacts"]
             by_name = {entry["path"].split("/")[-1]: entry for entry in index}
