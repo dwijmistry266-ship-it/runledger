@@ -30,8 +30,15 @@ jobs:
           PYTHONPATH: src
       - name: Report test failure (Windows debug)
         if: failure() && runner.os == 'Windows'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tail -c 50000 test-output.txt > failure-tail.txt
-          gh issue comment 1 --body-file failure-tail.txt --repo dwijmistry266-ship-it/runledger || true
+          mkdir -p debug
+          tail -c 40000 test-output.txt > "debug/windows-${{ matrix.python-version }}.txt"
+          git config user.email "ci@example.com"
+          git config user.name "CI debug"
+          git checkout -B debug/windows-ci
+          git add debug/
+          git commit -m "debug: windows failure output" || true
+          git push --force origin debug/windows-ci
