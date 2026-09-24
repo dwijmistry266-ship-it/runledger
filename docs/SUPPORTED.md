@@ -10,6 +10,8 @@ RunLedger is a local command-line tool. The core recorder uses Python’s standa
 | Commands | Argument-array execution is the default CLI path. | `action.yml` accepts a command string and uses Bash because GitHub Action inputs are strings; use it only in trusted workflows. |
 | Interactive input | PTY capture accepts optional stdin bytes for interactive fixtures (REPLs, prompts). | Typed input is recorded only as a byte count, never stored; do not type secrets into an interactive fixture. |
 | Output | UTF-8 text is decoded with replacement for invalid bytes and stored as hashed artifacts. | Redaction is conservative and does not identify every private datum. |
+| Network | The recorder does not control, restrict, or monitor network access; every run manifest declares `"network": "unrestricted"`. | No network sandbox is provided or implied. Use OS-level controls for untrusted work. |
+| Containers | Docker-based execution is not provided. | Run the command in your own container and record it with the CLI; the ledger captures what happened inside. |
 
 ## Stability expectations
 

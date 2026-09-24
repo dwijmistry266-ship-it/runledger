@@ -41,8 +41,8 @@ def run_pty(
     """
     if os.name != "posix":
         raise PtyUnavailable("PTY capture is only available on POSIX hosts")
-    if not argv:
-        raise ValueError("a command is required")
+    if isinstance(argv, str) or not argv:
+        raise ValueError("a command is required as an argument array, not a shell string")
     raw_argv = list(argv)
     display_argv, command_redactions = redact_argv(raw_argv)
     command_hash = hashlib.sha256("\0".join(raw_argv).encode("utf-8")).hexdigest()

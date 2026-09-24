@@ -33,7 +33,18 @@ def _write_run_metadata(run_dir: Path, run_id: str, repo: Path, before=None, aft
     current = {}
     if (run_dir / "run.json").exists():
         current = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-    current.update({"schema": "runledger.run.v1", "run_id": run_id, "repo": str(repo.resolve())})
+    current.update(
+        {
+            "schema": "runledger.run.v1",
+            "run_id": run_id,
+            "repo": str(repo.resolve()),
+            # Explicit safety boundary, machine-readable: RunLedger records the
+            # command but does not sandbox it. Network access is unrestricted
+            # and unmonitored; see docs/SUPPORTED.md. Docker-based execution is
+            # not provided.
+            "network": "unrestricted",
+        }
+    )
     if before is not None:
         current["git_before"] = _snapshot_payload(before)
     if after is not None:

@@ -19,8 +19,8 @@ class CommandRecorder:
         self.cwd = cwd or Path.cwd()
 
     def run(self, argv: Sequence[str], *, timeout: float | None = None) -> int:
-        if not argv:
-            raise ValueError("a command is required")
+        if isinstance(argv, str) or not argv:
+            raise ValueError("a command is required as an argument array, not a shell string")
         raw_argv = list(argv)
         display_argv, command_redactions = redact_argv(raw_argv)
         command_display = " ".join(display_argv)

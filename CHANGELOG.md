@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.3.0a0 — 2026-09-24
+
+Third alpha milestone. The schema and command interface may change before a stable release.
+
+### Added
+
+- Explicit safety limits: `CommandRecorder.run` and `run_pty` reject shell-string commands with `ValueError`; run manifests declare the machine-readable network boundary `"network": "unrestricted"`.
+- Concurrent isolation evidence: two simultaneous `--isolated` runs keep separate worktrees and leave the caller's checkout untouched.
+- Documented Docker/network position in `docs/SUPPORTED.md`: no network sandbox is provided or implied, and Docker-based execution is not provided.
+
 ## 0.2.0a0 — 2026-09-24
 
 Second alpha milestone. The schema and command interface may change before a stable release.
