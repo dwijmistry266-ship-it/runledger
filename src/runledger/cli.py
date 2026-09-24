@@ -15,7 +15,6 @@ from .contract import verify as verify_contract
 from .git import diff as git_diff
 from .git import snapshot as git_snapshot
 from .ledger import Ledger
-from .pty import run_pty
 from .recorder import CommandRecorder
 from .recovery import recover
 from .sarif import render_sarif
@@ -83,12 +82,15 @@ def _exec(args: argparse.Namespace) -> int:
     worktree = None
     execution_repo = repo
     if args.isolated:
-        worktree = Worktree(repo, run_dir / "worktree")
+        # Unique directory name: git derives the worktree admin directory from
+        # the basename, so two concurrent runs sharing "worktree" would collide.
+        worktree = Worktree(repo, run_dir / f"worktree-{uuid.uuid4().hex[:8]}")
         execution_repo = worktree.create()
         ledger.append("worktree.created", {"repository": str(repo), "path": str(execution_repo), "isolated": True})
     diff_output = ""
     try:
         if args.pty:
+            from .pty import run_pty  # lazy: the stdlib pty module is POSIX-only
             exit_code = run_pty(ledger, command, cwd=execution_repo, timeout=args.timeout)
         else:
             recorder = CommandRecorder(ledger, cwd=execution_repo)

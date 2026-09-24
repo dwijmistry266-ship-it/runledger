@@ -79,7 +79,7 @@ class RunLedgerV03Tests(unittest.TestCase):
             self.assertFalse((repo / markers[0]).exists())
             self.assertFalse((repo / markers[1]).exists())
             for run_dir in run_dirs:
-                self.assertFalse((run_dir / "worktree").exists())
+                self.assertEqual(list(run_dir.glob("worktree-*")), [])  # unique per-run dir is removed
 
             # Each run saw only its own file.
             diff_a = (run_dirs[0] / "artifacts" / "git-diff.patch").read_text(encoding="utf-8")

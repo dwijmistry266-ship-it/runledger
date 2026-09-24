@@ -5,8 +5,6 @@ from __future__ import annotations
 import errno
 import hashlib
 import os
-import pty
-import select
 import signal
 import subprocess
 import time
@@ -43,6 +41,12 @@ def run_pty(
         raise PtyUnavailable("PTY capture is only available on POSIX hosts")
     if isinstance(argv, str) or not argv:
         raise ValueError("a command is required as an argument array, not a shell string")
+    # The stdlib `pty` module does not exist on Windows; import it lazily so
+    # the rest of RunLedger (including the CLI) works there. The regular
+    # recorder is the documented fallback on non-POSIX hosts.
+    import pty
+    import select
+
     raw_argv = list(argv)
     display_argv, command_redactions = redact_argv(raw_argv)
     command_hash = hashlib.sha256("\0".join(raw_argv).encode("utf-8")).hexdigest()

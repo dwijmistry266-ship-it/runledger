@@ -164,7 +164,7 @@ class RunLedgerV01Tests(unittest.TestCase):
             code = main(["exec", "--repo", str(repo), "--run-dir", str(run_dir), "--isolated", "--", PYTHON, "-c", "open('generated.txt', 'w').write('isolated')"])
             self.assertEqual(code, 0)
             self.assertFalse((repo / "generated.txt").exists())
-            self.assertFalse((run_dir / "worktree").exists())
+            self.assertEqual(list(run_dir.glob("worktree-*")), [])  # unique per-run dir is removed
             events = list(Ledger(run_dir, run_id="isolated").events())
             self.assertIn("worktree.created", [event["type"] for event in events])
             self.assertIn("generated.txt", (run_dir / "artifacts" / "git-diff.patch").read_text(encoding="utf-8"))
