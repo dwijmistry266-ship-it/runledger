@@ -21,11 +21,23 @@ class PtyUnavailable(RuntimeError):
     """Raised when the host cannot provide a POSIX pseudo-terminal."""
 
 
-def run_pty(ledger: Ledger, argv: Sequence[str], *, cwd: Path | None = None, timeout: float | None = None) -> int:
+def run_pty(
+    ledger: Ledger,
+    argv: Sequence[str],
+    *,
+    cwd: Path | None = None,
+    timeout: float | None = None,
+    stdin_data: bytes | None = None,
+) -> int:
     """Run argv under a PTY and record one ordered terminal transcript.
 
     PTY support is intentionally POSIX-only. Callers should use the regular
     recorder on Windows or another host where ``pty`` is unavailable.
+
+    ``stdin_data`` is written to the terminal once the child starts, which
+    makes genuinely interactive fixtures (a REPL, a pager, a prompt) possible.
+    It is recorded only as a byte count: interactive input is never stored, so
+    a fixture must not type secrets into it.
     """
     if os.name != "posix":
         raise PtyUnavailable("PTY capture is only available on POSIX hosts")
@@ -51,6 +63,8 @@ def run_pty(ledger: Ledger, argv: Sequence[str], *, cwd: Path | None = None, tim
         )
         os.close(slave)
         slave = -1
+        if stdin_data:
+            os.write(master, stdin_data)
         started_event = ledger.append(
             "command.started",
             {
@@ -60,6 +74,7 @@ def run_pty(ledger: Ledger, argv: Sequence[str], *, cwd: Path | None = None, tim
                 "command_display": " ".join(display_argv),
                 "command_sha256": command_hash,
                 "redaction_count": command_redactions,
+                "stdin_bytes": len(stdin_data) if stdin_data else 0,
             },
         )
         deadline = started + timeout if timeout is not None else None

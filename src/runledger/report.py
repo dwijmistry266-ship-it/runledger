@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,30 @@ def load_run(run_dir: Path) -> dict[str, Any]:
     if run_json.exists():
         return json.loads(run_json.read_text(encoding="utf-8"))
     return {"run_id": run_dir.name}
+
+
+def artifact_index(run_dir: Path) -> list[dict[str, Any]]:
+    """Machine-readable index of every artifact file in a run.
+
+    This is the richer artifact index: name, size, and SHA-256 for each file
+    beneath ``artifacts/``, sorted for determinism. It mirrors the metadata
+    already stored on artifact-bearing events, collected in one place.
+    """
+    root = run_dir / "artifacts"
+    entries: list[dict[str, Any]] = []
+    if root.exists():
+        for path in sorted(root.rglob("*")):
+            if not path.is_file():
+                continue
+            data = path.read_bytes()
+            entries.append(
+                {
+                    "path": path.relative_to(run_dir).as_posix(),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                    "bytes": len(data),
+                }
+            )
+    return entries
 
 
 def build_summary(run_dir: Path) -> dict[str, Any]:
@@ -51,6 +76,7 @@ def build_summary(run_dir: Path) -> dict[str, Any]:
         "commands": commands,
         "event_count": len(events),
         "artifact_root": "artifacts",
+        "artifacts": artifact_index(run_dir),
         "git_before": snapshot_before,
         "git_after": snapshot_after,
         "checks": checks,
