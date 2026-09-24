@@ -1,0 +1,1 @@
+{"checks":[{"command":"runledger-selftest-never-recorded","expect":0,"id":"required-command","kind":"command-exit"}],"name":"action-selftest"}
