@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- macOS CI hang/OOM in `run_pty`: after the child exits, macOS `select()` keeps reporting the PTY master readable while `os.read()` returns `b""` instead of raising `EIO` (Linux behavior). The drain loop now treats an empty read as EOF, fixing the unbounded memory growth that got the macOS test jobs SIGKILLed (exit code 137). Regression test `test_pty_drain_treats_empty_read_as_eof` emulates the macOS empty-read behavior.
+
 ## 1.0.0a0 — 2026-09-24
 
 Prerelease of the 1.0 line. All schema identifiers (`runledger.event.v1`, `runledger.run.v1`, `runledger.checks.v1`, `runledger.report.v1`, `runledger.bundle.v1`, `runledger.recovery.v1`) are frozen per `docs/VERSIONING.md`; migration notes there confirm no migration is required from any alpha. The stable `1.0.0` tag is reserved until the adoption gate is met: at least one real external trial producing reproducible feedback or a documented bug fix.

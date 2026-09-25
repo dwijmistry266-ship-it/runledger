@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import threading
 import zipfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from runledger.adapters import PromptArgumentAdapter, PromptFileAdapter, conformance_check
 from runledger.bundle import build_bundle, verify_bundle
@@ -154,6 +157,47 @@ class RunLedgerV01Tests(unittest.TestCase):
             self.assertEqual(len(transcript_files), 1)
             self.assertIn("pty-line", transcript_files[0].read_text(encoding="utf-8"))
             self.assertEqual([event["type"] for event in ledger.events()], ["command.started", "command.completed"])
+
+    def test_pty_drain_treats_empty_read_as_eof(self) -> None:
+        # macOS quirk: after the child exits, select() keeps reporting the
+        # PTY master readable and os.read() returns b"" instead of raising
+        # EIO (the Linux behavior). The drain loop must treat b"" as EOF;
+        # otherwise it spins forever appending empty chunks until the host
+        # OOM-kills the process (observed as exit code 137 on macOS CI).
+        if os.name != "posix":
+            self.skipTest("PTY capture is POSIX-only")
+        import runledger.pty as pty_module
+
+        real_read = os.read
+
+        def macos_style_read(fd: int, size: int) -> bytes:
+            try:
+                return real_read(fd, size)
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    return b""
+                raise
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = Ledger(root / "run", run_id="macos-eof")
+            outcome: dict[str, object] = {}
+
+            def target() -> None:
+                try:
+                    with mock.patch.object(pty_module.os, "read", side_effect=macos_style_read):
+                        outcome["code"] = run_pty(ledger, [PYTHON, "-c", "print('pty-line')"], cwd=root)
+                except BaseException as exc:  # noqa: BLE001 - surfaced below
+                    outcome["error"] = exc
+
+            thread = threading.Thread(target=target, daemon=True)
+            thread.start()
+            thread.join(timeout=60)
+            self.assertFalse(thread.is_alive(), "run_pty hung on macOS-style empty-read EOF")
+            self.assertNotIn("error", outcome, f"run_pty raised: {outcome.get('error')!r}")
+            self.assertEqual(outcome.get("code"), 0)
+            transcript = (root / "run" / "artifacts" / "pty-1.log").read_text(encoding="utf-8")
+            self.assertIn("pty-line", transcript)
 
     def test_isolated_execution_does_not_mutate_original_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

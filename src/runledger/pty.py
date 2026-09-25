@@ -94,14 +94,27 @@ def run_pty(
             readable, _, _ = select.select([master], [], [], 0.05)
             if readable:
                 try:
-                    chunks.append(os.read(master, 65536))
+                    data = os.read(master, 65536)
                 except OSError as exc:
                     if exc.errno != errno.EIO:
                         raise
+                else:
+                    # A platform may report the master readable with no data
+                    # available; never buffer empty reads.
+                    if data:
+                        chunks.append(data)
             if process.poll() is not None:
                 try:
                     while True:
-                        chunks.append(os.read(master, 65536))
+                        data = os.read(master, 65536)
+                        if not data:
+                            # EOF. Linux raises EIO here, but macOS keeps
+                            # reporting the master readable and returns b"".
+                            # Treating b"" as EOF stops the drain loop from
+                            # spinning forever appending empty chunks until
+                            # the host OOM-kills the process.
+                            break
+                        chunks.append(data)
                 except OSError as exc:
                     if exc.errno != errno.EIO:
                         raise
