@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="assets/banner.svg" width="100%" alt="RUNLEDGER">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-00f0ff?style=for-the-badge&logo=python&logoColor=white&labelColor=04060c" alt="python">
+  <img src="https://img.shields.io/badge/license-MIT-ff2a6d?style=for-the-badge&labelColor=04060c" alt="license">
+  <img src="https://img.shields.io/badge/version-1.0.0a0-b967ff?style=for-the-badge&labelColor=04060c" alt="version">
+</p>
+
+---
+
 # RunLedger
 
 > **A local-first flight recorder for coding-agent runs.**
@@ -101,3 +113,6 @@ Prerelease: `1.0.0a0`. The event schema identifiers (`runledger.event.v1`, `runl
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+---
+<p align="center"><sub>// end of transmission _</sub></p>

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#04060c"/>
+      <stop offset="0.62" stop-color="#04060c"/>
+      <stop offset="1" stop-color="#0a1424"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd319"/>
+      <stop offset="0.55" stop-color="#ff2975"/>
+      <stop offset="1" stop-color="#8c1eff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" y="0" fill="#000000" opacity="0.28"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="420" fill="url(#bg)"/>
+
+  <!-- synthwave sun -->
+  <circle cx="600" cy="140" r="88" fill="url(#sun)" opacity="0.9"/>
+  <rect x="480" y="150" width="240" height="5" fill="#04060c" opacity="0.85"/>
+    <rect x="480" y="165" width="240" height="7" fill="#04060c" opacity="0.85"/>
+    <rect x="480" y="183" width="240" height="9" fill="#04060c" opacity="0.85"/>
+    <rect x="480" y="205" width="240" height="11" fill="#04060c" opacity="0.85"/>
+
+  <!-- floor grid -->
+  <line x1="0" y1="268" x2="1200" y2="268" stroke="#00f0ff" stroke-width="1" opacity="0.1"/>
+    <line x1="0" y1="282" x2="1200" y2="282" stroke="#00f0ff" stroke-width="1" opacity="0.13"/>
+    <line x1="0" y1="300" x2="1200" y2="300" stroke="#00f0ff" stroke-width="1" opacity="0.16"/>
+    <line x1="0" y1="322" x2="1200" y2="322" stroke="#00f0ff" stroke-width="1" opacity="0.19"/>
+    <line x1="0" y1="348" x2="1200" y2="348" stroke="#00f0ff" stroke-width="1" opacity="0.22"/>
+    <line x1="0" y1="378" x2="1200" y2="378" stroke="#00f0ff" stroke-width="1" opacity="0.25"/>
+    <line x1="450.0" y1="262" x2="0" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="475.0" y1="262" x2="100" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="500.0" y1="262" x2="200" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="525.0" y1="262" x2="300" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="550.0" y1="262" x2="400" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="575.0" y1="262" x2="500" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="600.0" y1="262" x2="600" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="625.0" y1="262" x2="700" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="650.0" y1="262" x2="800" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="675.0" y1="262" x2="900" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="700.0" y1="262" x2="1000" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="725.0" y1="262" x2="1100" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+    <line x1="750.0" y1="262" x2="1200" y2="420" stroke="#00f0ff" stroke-width="1" opacity="0.14"/>
+
+  <!-- scanlines -->
+  <rect width="1200" height="420" fill="url(#scan)"/>
+
+  <!-- HUD corner brackets -->
+  <path d="M28 44 V28 H44" stroke="#00f0ff" stroke-width="3" fill="none" opacity="0.9"/>
+  <path d="M1156 28 H1172 V44" stroke="#00f0ff" stroke-width="3" fill="none" opacity="0.9"/>
+  <path d="M28 376 V392 H44" stroke="#00f0ff" stroke-width="3" fill="none" opacity="0.9"/>
+  <path d="M1156 392 H1172 V376" stroke="#00f0ff" stroke-width="3" fill="none" opacity="0.9"/>
+
+  <!-- status chips -->
+  <rect x="48" y="48" width="196" height="34" rx="4" fill="none" stroke="#00f0ff" stroke-width="1.5" opacity="0.9"/>
+  <text x="64" y="71" font-family="monospace" font-size="17" fill="#00f0ff">&#9658; SYS.ONLINE</text>
+  <rect x="956" y="48" width="196" height="34" rx="4" fill="none" stroke="#ff2a6d" stroke-width="1.5" opacity="0.9"/>
+  <text x="972" y="71" font-family="monospace" font-size="17" fill="#ff2a6d">v1.0.0a0</text>
+
+  <!-- title -->
+  <text x="600" y="300" text-anchor="middle" font-family="monospace" font-size="72"
+        font-weight="bold" letter-spacing="10" fill="#00f0ff" filter="url(#glow)">RUNLEDGER</text>
+  <text x="600" y="344" text-anchor="middle" font-family="monospace" font-size="24"
+        letter-spacing="4" fill="#ff2a6d" opacity="0.95">// local-first flight recorder for coding-agent runs</text>
+
+  <!-- bottom ticker -->
+  <text x="600" y="392" text-anchor="middle" font-family="monospace" font-size="14"
+        letter-spacing="6" fill="#5a6b8c">NEURAL INTERFACE ACTIVE _</text>
+</svg>
