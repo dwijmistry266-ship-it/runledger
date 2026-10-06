@@ -1,0 +1,103 @@
+#compdef runledger
+# Zsh completion for the runledger CLI.
+#
+# Install for the current user:
+#   mkdir -p ~/.zsh/completions
+#   cp contrib/completion/_runledger ~/.zsh/completions/_runledger
+# Then add to ~/.zshrc (before compinit):
+#   fpath=(~/.zsh/completions $fpath)
+
+_runledger() {
+    local context state line
+    typeset -A opt_args
+
+    local -a subcommands
+    subcommands=(
+        'init:create a run directory and capture the initial Git state'
+        'exec:record one command in an initialized run'
+        'recover:classify unfinished command events in a run'
+        'compare:compare two recorded runs'
+        'bundle:create or verify a portable proof bundle'
+        'verify:evaluate a recorded run against a JSON task contract'
+        'report:render a recorded run'
+    )
+
+    _arguments -C \
+        '1: :->subcommand' \
+        '*:: :->args' && return 0
+
+    case "$state" in
+        subcommand)
+            _describe -t subcommands 'runledger subcommand' subcommands
+            ;;
+        args)
+            case "$line[1]" in
+                init)
+                    _arguments \
+                        '--repo[repository to snapshot]:repo:_files -/' \
+                        '--run-dir[run directory]:run dir:_files -/' \
+                        '--run-id[explicit run id]:run id:'
+                    ;;
+                exec)
+                    _arguments \
+                        '--repo[repository to run in]:repo:_files -/' \
+                        '--run-dir[initialized run directory]:run dir:_files -/' \
+                        '--timeout[command timeout in seconds]:timeout:' \
+                        '--pty[capture through a POSIX pseudo-terminal]' \
+                        '--isolated[run in a disposable detached Git worktree]' \
+                        '*::command:_normal'
+                    ;;
+                recover)
+                    _arguments \
+                        '--run-dir[run directory to classify]:run dir:_files -/'
+                    ;;
+                compare)
+                    _arguments \
+                        '--format[output format]:(markdown json)' \
+                        '--output[write to file instead of stdout]:output:_files' \
+                        '*:run a:_files -/'
+                    ;;
+                bundle)
+                    local context state line
+                    typeset -A opt_args
+                    _arguments -C \
+                        '1: :->bundle-action' \
+                        '*:: :->bundle-args' && return 0
+                    case "$state" in
+                        bundle-action)
+                            _describe -t actions 'bundle action' \
+                                'create:create a portable proof bundle' \
+                                'verify:verify a portable proof bundle'
+                            ;;
+                        bundle-args)
+                            case "$line[1]" in
+                                create)
+                                    _arguments \
+                                        '--run-dir[run directory to bundle]:run dir:_files -/' \
+                                        '--output[bundle file to write]:output:_files'
+                                    ;;
+                                verify)
+                                    _arguments \
+                                        '--output[bundle file to verify]:output:_files'
+                                    ;;
+                            esac
+                            ;;
+                    esac
+                    ;;
+                verify)
+                    _arguments \
+                        '--run-dir[run directory to evaluate]:run dir:_files -/' \
+                        '--contract[JSON task contract]:contract:_files'
+                    ;;
+                report)
+                    _arguments \
+                        '--run-dir[run directory to render]:run dir:_files -/' \
+                        '--format[output format]:(markdown json html sarif)' \
+                        '--output[write to file instead of stdout]:output:_files'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_runledger "$@"

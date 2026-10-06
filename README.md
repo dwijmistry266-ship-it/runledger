@@ -102,6 +102,23 @@ bash tests/test_action.sh
 
 Read [supported environments](docs/SUPPORTED.md), the [security model](docs/SECURITY.md), the [event schema](docs/event-schema.md), and the [stable-release gates](docs/STABLE_RELEASE_GATES.md) before depending on RunLedger output.
 
+## Shell completion
+
+Tab completion for Bash and Zsh lives in `contrib/completion/`. It completes
+subcommand names, per-subcommand options, `--format` choices, and `bundle`'s
+nested actions.
+
+```bash
+# Bash: copy into the user completions directory …
+mkdir -p ~/.local/share/bash-completion/completions
+cp contrib/completion/runledger.bash ~/.local/share/bash-completion/completions/runledger
+# … or source it from ~/.bashrc:
+# source /path/to/runledger/contrib/completion/runledger.bash
+
+# Zsh: add the directory to fpath before compinit in ~/.zshrc
+# fpath=(/path/to/runledger/contrib/completion $fpath)
+```
+
 ## Non-goals
 
 RunLedger does not certify correctness or security, inspect private model reasoning, or upload repository contents to a hosted service. Standard execution records the command in the current checkout; use `--isolated` for disposable Git worktree execution. PTY capture is POSIX-only, and no network sandbox is implied by the recorder.
