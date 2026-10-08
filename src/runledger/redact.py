@@ -1,4 +1,9 @@
-"""Conservative redaction for common credential-shaped values."""
+"""Conservative redaction for common credential-shaped values.
+
+Handles both bare ``key=value``/``key: value`` assignments and quoted forms
+such as JSON's ``"password": "hunter2"`` (the quotes around the key and value
+are preserved; only the value is replaced).
+"""
 
 from __future__ import annotations
 
@@ -6,7 +11,7 @@ import re
 
 
 _PATTERNS = (
-    re.compile(r"(?i)(\b(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)\b\s*[:=]\s*)([^\s,;]+)"),
+    re.compile(r"""(?i)(["']?\b(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)\b["']?\s*[:=]\s*["']?)([^\s,;'"]+)(["']?)"""),
     re.compile(r"\b(?:ghp|gho|github_pat|sk|xox[baprs])_[A-Za-z0-9_\-]{12,}\b"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
@@ -20,7 +25,7 @@ def redact(text: str) -> tuple[str, int]:
     def replace_assignment(match: re.Match[str]) -> str:
         nonlocal count
         count += 1
-        return match.group(1) + "[REDACTED]"
+        return match.group(1) + "[REDACTED]" + match.group(3)
 
     text = _PATTERNS[0].sub(replace_assignment, text)
     for pattern in _PATTERNS[1:]:
