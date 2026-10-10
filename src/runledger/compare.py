@@ -12,7 +12,9 @@ from .report import build_summary
 def _paths(summary: dict[str, Any]) -> set[str]:
     snapshot = summary.get("git_after") or {}
     values: set[str] = set()
-    for raw in snapshot.get("status", []):
+    for raw in snapshot.get("status", []) or []:
+        if not isinstance(raw, str):
+            continue  # ignore malformed entries instead of crashing on len(raw)
         value = raw[3:] if len(raw) >= 3 else raw
         if " -> " in value:
             value = value.split(" -> ", 1)[1]
