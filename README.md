@@ -100,7 +100,7 @@ bash examples/basic-demo.sh
 bash tests/test_action.sh
 ```
 
-Read [supported environments](docs/SUPPORTED.md), the [security model](docs/SECURITY.md), the [event schema](docs/event-schema.md), and the [stable-release gates](docs/STABLE_RELEASE_GATES.md) before depending on RunLedger output.
+Read [the FAQ](docs/FAQ.md), [supported environments](docs/SUPPORTED.md), the [security model](docs/SECURITY.md), the [event schema](docs/event-schema.md), and the [stable-release gates](docs/STABLE_RELEASE_GATES.md) before depending on RunLedger output.
 
 ## Shell completion
 

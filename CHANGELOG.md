@@ -8,6 +8,8 @@
 
 ### Added
 
+- `docs/FAQ.md`: newcomer answers to the 8 most common questions — what RunLedger is/isn't, where data goes, what `exec` does to a command, redaction limits, contract `verify` vs `recover`, reading crashed runs, `--isolated`, and CI/Action usage. README now links it first among the before-you-depend docs.
+
 - `tests/test_compare.py`: 11 unit tests locking `compare` edge behavior — two empty run dirs, missing `run.json`/`run_id`/`git_after` fields, empty ledgers, malformed status entries (too short, empty, non-string), rename resolution to the destination path, deduplication and sorting of duplicate statuses, shared paths on identical runs, commands with missing `exit_code`/`duration_ms` (a missing `exit_code` counts as failed, consistent with the status logic), and `render_json`/`render_markdown` outputs.
 
 - macOS CI hang/OOM in `run_pty`: after the child exits, macOS `select()` keeps reporting the PTY master readable while `os.read()` returns `b""` instead of raising `EIO` (Linux behavior). The drain loop now treats an empty read as EOF, fixing the unbounded memory growth that got the macOS test jobs SIGKILLed (exit code 137). Regression test `test_pty_drain_treats_empty_read_as_eof` emulates the macOS empty-read behavior.
