@@ -1,4 +1,11 @@
-"""Command-line interface for RunLedger v0.1."""
+"""Command-line interface for RunLedger v0.1.
+
+Entry point for every ``runledger`` subcommand. Each subcommand's handler is a
+``_name(args) -> int`` function registered on the subparsers via
+``set_defaults(handler=...)``; :func:`main` parses ``argv`` and delegates to the
+chosen handler. Handlers print human- or machine-readable results to stdout
+(or a file via ``--output``) and return the process exit code.
+"""
 
 from __future__ import annotations
 
@@ -8,11 +15,12 @@ import sys
 import uuid
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from .bundle import build_bundle, verify_bundle
 from .compare import render_json as render_compare_json, render_markdown as render_compare_markdown
 from .contract import verify as verify_contract
-from .git import diff as git_diff
+from .git import GitSnapshot, diff as git_diff
 from .git import snapshot as git_snapshot
 from .ledger import Ledger
 from .recorder import CommandRecorder
@@ -23,11 +31,17 @@ from .viewer import render_html
 from .worktree import Worktree
 
 
-def _snapshot_payload(value):
+def _snapshot_payload(value: GitSnapshot) -> dict[str, Any]:
+    """Return the dataclass ``GitSnapshot`` as a plain JSON-serializable dict."""
     return asdict(value)
 
 
-def _write_run_metadata(run_dir: Path, run_id: str, repo: Path, before=None, after=None) -> None:
+def _write_run_metadata(run_dir: Path, run_id: str, repo: Path, before: GitSnapshot | None = None, after: GitSnapshot | None = None) -> None:
+    """Rewrite ``run.json`` with run identity, the repo path, and git snapshots.
+
+    Existing manifest content is preserved and updated in place: git-before
+    snapshots are stored on ``init``, git-after snapshots on ``exec``.
+    """
     ledger = Ledger(run_dir, run_id=run_id)
     current = {}
     if (run_dir / "run.json").exists():
@@ -52,6 +66,10 @@ def _write_run_metadata(run_dir: Path, run_id: str, repo: Path, before=None, aft
 
 
 def _init(args: argparse.Namespace) -> int:
+    """Create a run directory, snapshot the repo's initial git state, and log it.
+
+    Prints the run directory path. Always returns 0.
+    """
     repo = Path(args.repo).resolve()
     run_id = args.run_id or f"run-{uuid.uuid4().hex[:12]}"
     run_dir = Path(args.run_dir).resolve() if args.run_dir else Path(".runledger") / run_id
@@ -67,6 +85,16 @@ def _init(args: argparse.Namespace) -> int:
 
 
 def _exec(args: argparse.Namespace) -> int:
+    """Record one command inside an initialized run and snapshot the repo after it.
+
+    Runs the command via :class:`CommandRecorder` (or a pseudo-terminal when
+    ``--pty`` is passed), optionally inside a disposable detached git worktree
+    when ``--isolated`` is passed, then stores the git-diff artifact and the
+    post-run git snapshot in ``run.json``.
+
+    Returns the command's exit code so ``runledger exec`` transparently
+    propagates failure.
+    """
     command = list(args.command)
     if command and command[0] == "--":
         command = command[1:]
@@ -111,6 +139,11 @@ def _exec(args: argparse.Namespace) -> int:
 
 
 def _compare(args: argparse.Namespace) -> int:
+    """Diff two recorded runs and render the result as markdown or JSON.
+
+    Writes to stdout, or to ``--output`` (printing the file path) when given.
+    Always returns 0.
+    """
     if args.format == "json":
         output = render_compare_json(Path(args.run_a).resolve(), Path(args.run_b).resolve())
     else:
@@ -124,12 +157,23 @@ def _compare(args: argparse.Namespace) -> int:
 
 
 def _recover(args: argparse.Namespace) -> int:
+    """Classify unfinished command events in a run and print the recovery report.
+
+    Prints the JSON recovery report to stdout. Returns 0 when the run is
+    ``complete``, 1 otherwise.
+    """
     result = recover(Path(args.run_dir).resolve())
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "complete" else 1
 
 
 def _bundle(args: argparse.Namespace) -> int:
+    """Create a portable proof bundle from a run, or verify an existing one.
+
+    For ``create``, prints the bundle path and file count as JSON. For
+    ``verify``, prints the verdict; errors go to stderr. Returns 0 on success
+    or a valid bundle, 1 on verification failure.
+    """
     bundle_path = Path(args.output).resolve()
     if args.bundle_action == "create":
         manifest = build_bundle(Path(args.run_dir), bundle_path)
@@ -145,6 +189,10 @@ def _bundle(args: argparse.Namespace) -> int:
 
 
 def _verify(args: argparse.Namespace) -> int:
+    """Evaluate a recorded run against a JSON task contract.
+
+    Prints the contract verdict as JSON and returns its exit code.
+    """
     run_dir = Path(args.run_dir).resolve()
     output, exit_code = verify_contract(run_dir, Path(args.contract).resolve())
     print(json.dumps(output, indent=2, sort_keys=True))
@@ -152,6 +200,11 @@ def _verify(args: argparse.Namespace) -> int:
 
 
 def _report(args: argparse.Namespace) -> int:
+    """Render a recorded run in the requested format (markdown, JSON, HTML, SARIF).
+
+    Writes to stdout, or to ``--output`` (printing the file path) when given.
+    Always returns 0.
+    """
     run_dir = Path(args.run_dir).resolve()
     if args.format == "json":
         output = render_json(run_dir)
@@ -170,6 +223,8 @@ def _report(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the ``runledger`` argument parser with all subcommands and flags."""
+
     parser = argparse.ArgumentParser(prog="runledger", description="Record and verify observable coding-agent runs.")
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
@@ -223,6 +278,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse ``argv`` (defaulting to ``sys.argv``) and dispatch to the chosen handler."""
+
     args = build_parser().parse_args(argv)
     return args.handler(args)
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- `src/runledger/cli.py`: every subcommand handler and helper now has a docstring documenting what it prints and what exit code it returns; `_snapshot_payload` and `_write_run_metadata` gained the missing `GitSnapshot`-based type hints (no behavior change).
+
 ### Fixed
 
 - `compare` no longer crashes when `git_after.status` contains malformed entries: non-string entries (numbers, null, objects) are skipped, and a `null` status list is treated as empty.
