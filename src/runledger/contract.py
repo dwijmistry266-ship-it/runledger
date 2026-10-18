@@ -1,4 +1,20 @@
-"""Deterministic verification of a recorded run against a JSON task contract."""
+"""Deterministic verification of a recorded run against a JSON task contract.
+
+A contract names a task and declares the checks a recorded run must satisfy:
+
+``command-exit`` — a recorded command whose ``command_display`` matches and whose
+exit code equals ``expect`` (default ``0``); ``path-policy`` — the top-level
+``allowed_paths``/``forbidden_paths`` glob policies every changed path must
+satisfy; ``changed-lines`` — an ``artifacts/git-diff.patch`` budget of at most
+``maximum`` added + deleted lines.
+
+Every check yields a :class:`CheckResult` with status ``pass``, ``fail``,
+``unknown`` (check is malformed or unevaluable) or ``not-run`` (a required
+command was never recorded). A run only ``passes`` when every check passes;
+anything else is ``failed``. :func:`verify` writes the machine-readable
+``checks.json`` artifact and logs a ``verification.completed`` ledger event, so
+a verification is itself recorded for later audit.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +29,14 @@ from .ledger import Ledger, canonical_json
 
 @dataclass(frozen=True)
 class CheckResult:
+    """One executed contract check.
+
+    ``id`` is the contract's own check id (or a fallback); ``kind`` names the
+    check kind; ``status`` is one of ``pass``, ``fail``, ``unknown`` or
+    ``not-run``; ``message`` is the human-readable verdict; ``evidence`` holds
+    the JSON-serializable facts the verdict was based on.
+    """
+
     id: str
     kind: str
     status: str
@@ -21,6 +45,12 @@ class CheckResult:
 
 
 def load_contract(path: Path) -> dict[str, Any]:
+    """Read and structurally validate the JSON contract at ``path``.
+
+    Returns the contract dict unchanged. Raises :class:`ValueError` when the
+    file is not valid JSON, the root is not an object, the ``name`` is missing
+    or empty, or ``checks`` is present but not a list.
+    """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -35,6 +65,14 @@ def load_contract(path: Path) -> dict[str, Any]:
 
 
 def _changed_paths(run: dict[str, Any]) -> list[str]:
+    """Return the deduplicated, sorted paths changed by the recorded run.
+
+    Derived from the ``git_after`` snapshot's ``status`` entries: the leading
+    3-character status prefix is stripped, and rename entries (``old -> new``)
+    resolve to the destination path. Entries shorter than 3 characters are
+    kept verbatim rather than mangled. An absent ``git_after`` snapshot means
+    no changed paths.
+    """
     snapshot = run.get("git_after") or {}
     paths: list[str] = []
     for raw in snapshot.get("status", []):
@@ -47,6 +85,11 @@ def _changed_paths(run: dict[str, Any]) -> list[str]:
 
 
 def _diff_lines(run_dir: Path) -> tuple[int, int]:
+    """Count added and deleted lines in the run's ``artifacts/git-diff.patch``.
+
+    The ``+++``/``---`` file-header lines are not counted. A missing patch is
+    not an error — the run simply recorded no diff, so ``(0, 0)`` is returned.
+    """
     patch = run_dir / "artifacts" / "git-diff.patch"
     if not patch.exists():
         return 0, 0
@@ -62,10 +105,20 @@ def _diff_lines(run_dir: Path) -> tuple[int, int]:
 
 
 def _completed_commands(run_dir: Path) -> list[dict[str, Any]]:
+    """Return every ``command.completed`` ledger event for the run, in order."""
     return [event for event in Ledger(run_dir).events() if event.get("type") == "command.completed"]
 
 
 def _path_policy(contract: dict[str, Any], changed: list[str]) -> CheckResult:
+    """Check the run's changed paths against the contract's path policy.
+
+    Patterns are matched with ``fnmatch`` against the full relative path.
+    A hit on any ``forbidden_paths`` pattern fails the check; when
+    ``allowed_paths`` is non-empty, any path matching none of them fails it
+    too. An empty ``allowed_paths`` list constrains nothing. Forbidden wins
+    when a path matches both lists. Evidence names the offending paths (or
+    the full changed set on success).
+    """
     forbidden = contract.get("forbidden_paths", [])
     allowed = contract.get("allowed_paths", [])
     forbidden_hits = [path for path in changed if any(fnmatch.fnmatch(path, pattern) for pattern in forbidden)]
@@ -78,6 +131,16 @@ def _path_policy(contract: dict[str, Any], changed: list[str]) -> CheckResult:
 
 
 def _command_check(check: dict[str, Any], commands: list[dict[str, Any]]) -> CheckResult:
+    """Check that the contract's ``command`` was recorded and exited as expected.
+
+    The expected exit code comes from ``expect`` (default ``0``). The required
+    command must appear among the recorded ``command.completed`` events with
+    an exact ``command_display`` match — a mismatch is status ``not-run``, not
+    ``fail``. When the command ran more than once, the most recent invocation
+    decides. A malformed check (missing or non-string ``command``) yields
+    ``unknown``. Evidence carries the expected/actual exit codes and the
+    ledger ``seq`` of the matched event.
+    """
     expected = check.get("command")
     if not isinstance(expected, str) or not expected:
         return CheckResult(check.get("id", "command"), "command-exit", "unknown", "command-exit check requires a command", {})
@@ -93,6 +156,14 @@ def _command_check(check: dict[str, Any], commands: list[dict[str, Any]]) -> Che
 
 
 def _diff_budget(check: dict[str, Any], run_dir: Path) -> CheckResult:
+    """Check the run's changed-line total against the check's ``maximum``.
+
+    ``maximum`` must be a non-negative integer; anything else yields
+    ``unknown`` rather than an assumed budget. The total counts added plus
+    deleted patch lines (see :func:`_diff_lines`), so a refactor touching many
+    lines fails even if the net change is small. Evidence records additions,
+    deletions, the total, and the budget.
+    """
     additions, deletions = _diff_lines(run_dir)
     total = additions + deletions
     maximum = check.get("maximum")
@@ -104,6 +175,20 @@ def _diff_budget(check: dict[str, Any], run_dir: Path) -> CheckResult:
 
 
 def verify(run_dir: Path, contract_path: Path) -> tuple[dict[str, Any], int]:
+    """Verify a recorded run against a contract and persist the verdict.
+
+    Runs every executable check in the contract (top-level
+    ``allowed_paths``/``forbidden_paths`` first, then each entry in
+    ``checks``; non-object checks and unsupported kinds become ``unknown``
+    results rather than raising). A contract with no executable checks yields
+    a single ``unknown`` result, so it can never silently pass.
+
+    The verdict is written to ``artifacts/checks.json`` (schema
+    ``runledger.checks.v1``) and a ``verification.completed`` event is
+    appended to the run's ledger, making the verification itself part of the
+    recorded run. Returns ``(output, exit_code)`` where the exit code is ``0``
+    when every check passed and ``1`` otherwise.
+    """
     contract = load_contract(contract_path)
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8")) if (run_dir / "run.json").exists() else {}
     changed = _changed_paths(run)

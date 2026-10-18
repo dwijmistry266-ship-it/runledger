@@ -4,6 +4,7 @@
 
 ### Changed
 
+- `src/runledger/contract.py`: every function and the `CheckResult` dataclass now have a docstring (third module in the docstring/type-hint sweep — annotations were already complete, so no signature changes); documents the check kinds, `pass`/`fail`/`unknown`/`not-run` statuses, the `expect` default, most-recent-invocation matching, forbidden-wins path policy semantics, and that `verify` persists `checks.json` plus a `verification.completed` ledger event.
 - `src/runledger/ledger.py`: every function and method now has a docstring (second module in the docstring/type-hint sweep — annotations were already complete, so no signature changes); documents the fsync durability guarantee on `append`, the path-escape guard in `ArtifactStore`, and sequence/manifest behavior.
 - `src/runledger/cli.py`: every subcommand handler and helper now has a docstring documenting what it prints and what exit code it returns; `_snapshot_payload` and `_write_run_metadata` gained the missing `GitSnapshot`-based type hints (no behavior change).
 
